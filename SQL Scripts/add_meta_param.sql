@@ -1,4 +1,4 @@
 EXEC dbo.AddFileMeta 
-	@Facility = 'KwaZulu-Natal', 
-	@File_Type = 'tb_csv',
-	@User_Name = 'matthewkeys'
+	@Facility = --<Facility name>, 
+	@File_Type = --<File type name>,
+	@User_Name = --<Username>
