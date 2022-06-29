@@ -14,7 +14,7 @@ public class csvgenerator {
 
     public static void main(String args[]) {
 
-        type = "hiv";
+        type = "tb";
 
         for (int i = 0; i < NUMFILES; i++) {
             FileWriter file = makeFile(i + 1);
@@ -37,7 +37,10 @@ public class csvgenerator {
                 }
 
                 try {
-                    file.write(strings[index] + "," + elementValue + "\n");
+                    if (j == NUMENTRIES - 1)
+                        file.write(strings[index] + "," + elementValue);
+                    else
+                        file.write(strings[index] + "," + elementValue + "\n");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
