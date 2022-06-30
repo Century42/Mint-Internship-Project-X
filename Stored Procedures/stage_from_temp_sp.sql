@@ -73,14 +73,18 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		INSERT INTO [dbo].[File_Logs]
+		/*INSERT INTO [dbo].[File_Logs]
            ([File_ID]
            ,[Status]
            ,[Description])
 		VALUES
            (@id
            ,'Failed'
-           ,@errormsg)
+           ,@errormsg)*/
+		EXEC dbo.AddFileLog
+			@File_ID = @id,
+			@Status = 'Failed',
+			@Description = @errormsg
 	END
 
 	TRUNCATE TABLE dbo.Temp;
