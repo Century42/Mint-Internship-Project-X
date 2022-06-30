@@ -53,10 +53,11 @@ BEGIN
 				   ([File_ID]
 				   ,[Data_Element]
 				   ,[Data_Element_Value])
-			 VALUES
-				   (@id
-				   ,(SELECT Data_Element FROM dbo.Temp)
-				   ,(SELECT Data_Element_Value FROM dbo.Temp));
+			 SELECT
+				   @id,
+				   Data_Element,
+				   Data_Element_Value
+			FROM dbo.Temp
 		END
 		ELSE
 		BEGIN
@@ -65,10 +66,11 @@ BEGIN
 				   ([File_ID]
 				   ,[Data_Element]
 				   ,[Data_Element_Value])
-			 VALUES
-				   (@id
-				   ,(SELECT Data_Element FROM dbo.Temp)
-				   ,(SELECT Data_Element_Value FROM dbo.Temp));
+			 SELECT
+				   @id,
+				   Data_Element,
+				   Data_Element_Value
+			FROM dbo.Temp
 		END
 	END
 	ELSE
