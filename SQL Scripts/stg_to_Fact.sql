@@ -13,13 +13,22 @@ DECLARE @lastFileID int = (SELECT File_ID FROM Files WHERE Insert_Date = @lastDa
            ([Data_Element]
            ,[Data_Element_Value],
 		   [DateKey])
-	SELECT Data_Element, Data_Element_Value, DateKey
-	FROM DimDate, stg_HIV
-		INNER JOIN Files ON stg_HIV.File_ID = Files.File_ID 
-		INNER JOIN Weeks ON Files.Week_ID = Weeks.Week_ID WHERE Files.File_ID = @lastFileID 
-			-- get DateKey from dimDate
-			AND WeekOfYear = (SELECT Week From Weeks WHERE 
-					Week_ID = (SELECT Week_ID FROM Files WHERE File_ID = stg_HIV.File_ID))
+	SELECT hiv.Data_Element, hiv.Data_Element_Value, DateKey, f.Insert_Date
+	FROM stg_HIV hiv
+		INNER JOIN Files f 
+			ON hiv.File_ID = f.File_ID 
+		INNER JOIN Weeks w 
+			ON f.Week_ID = w.Week_ID
+		INNER JOIN DimDate dd
+			ON dd.WeekOfYear = w.Week
+			AND dd.Year = w.Year
+			AND dd.DateKey = (SELECT Max(DateKey) FROM DimDate dSub WHERE dSub.WeekOfYear = w.Week AND dSub.Year = w.Year) 
+	WHERE f.Insert_Date IN (SELECT Max(Insert_Date) AS 'Max' 
+							FROM Files f
+								INNER JOIN stg_HIV h
+								ON f.File_ID = h.File_ID)	
+		
+		
 /****** Need to change so that script can work for a general staging table ******/
 
 -- get date of last file added
