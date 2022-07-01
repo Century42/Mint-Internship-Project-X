@@ -13,18 +13,41 @@ DECLARE @lastFileID int = (SELECT File_ID FROM Files WHERE Insert_Date = @lastDa
            ([Data_Element]
            ,[Data_Element_Value],
 		   [DateKey])
-	SELECT hiv.Data_Element, SUM(hiv.Data_Element_Value) AS Data_Element_Value, DateKey
+	SELECT hiv.Data_Element, hiv.Data_Element_Value, DateKey, f.Insert_Date
 	FROM stg_HIV hiv
 		INNER JOIN Files f 
 			ON hiv.File_ID = f.File_ID 
 		INNER JOIN Weeks w 
-			ON f.Week_ID = w.Week_ID
+			ON f.Week_ID = w.Week_ID  
 		INNER JOIN DimDate dd
 			ON dd.WeekOfYear = w.Week
 			AND dd.Year = w.Year
-			AND dd.DateKey = (SELECT Max(DateKey) FROM DimDate dSub WHERE dSub.WeekOfYear = w.Week AND dSub.Year = w.Year) 	
-	GROUP BY w.Week_ID, hiv.Data_Element, DateKey
+			AND dd.DateKey = (SELECT Max(DateKey) FROM DimDate dSub WHERE dSub.WeekOfYear = w.Week AND dSub.Year = w.Year) -- return max day of week
+	WHERE
+		Insert_Date = (
+		SELECT MAX(fLast.Insert_Date)
+		FROM Files fLast
+		INNER JOIN Weeks ON w.Week_ID = fLast.Week_ID
+		)
+
+SELECT hiv.Data_Element, hiv.Data_Element_Value, DateKey, f.Insert_Date
+	FROM stg_HIV hiv
+		INNER JOIN Files f 
+			ON hiv.File_ID = f.File_ID 
+		INNER JOIN Weeks w 
+			ON f.Week_ID = w.Week_ID  
+		INNER JOIN DimDate dd
+			ON dd.WeekOfYear = w.Week
+			AND dd.Year = w.Year
+			AND dd.DateKey = (SELECT Max(DateKey) FROM DimDate dSub WHERE dSub.WeekOfYear = w.Week AND dSub.Year = w.Year) -- return max day of week
+
 		
+
+SELECT Week, Max(Insert_Date)
+FROM Files f 
+	INNER JOIN Weeks w
+	ON w.Week_ID = f.Week_ID
+GROUP BY Week
 		
 /****** Need to change so that script can work for a general staging table ******/
 
