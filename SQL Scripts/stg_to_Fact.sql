@@ -23,6 +23,16 @@ DECLARE @lastFileID int = (SELECT File_ID FROM Files WHERE Insert_Date = @lastDa
 			ON dd.WeekOfYear = w.Week
 			AND dd.Year = w.Year
 			AND dd.DateKey = (SELECT Max(DateKey) FROM DimDate dSub WHERE dSub.WeekOfYear = w.Week AND dSub.Year = w.Year) -- return max day of week
+		INNER JOIN (
+			SELECT Week_ID, MAX(f.Insert_Date) maxdate
+			FROM stg_HIV hiv
+				INNER JOIN Files f
+					ON hiv.File_ID = f.File_ID
+			GROUP BY Week_ID
+		) maxdatetbl
+		ON f.Insert_Date = maxdatetbl.maxdate
+
+
 	WHERE
 		Insert_Date = (
 		SELECT MAX(fLast.Insert_Date)
