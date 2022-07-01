@@ -6,6 +6,7 @@ CREATE TABLE [dbo].[DimDate]
 	(	[DateKey] INT primary key, 
 		[Date] DATE,
 		[FullDate] CHAR(10), -- Date in dd-MM-yyyy formatt
+		[DayOfMonth] VARCHAR(2), -- Field will hold day number of Month
 		[WeekOfMonth] VARCHAR(1),-- Week Number of Month 
 		[WeekOfQuarter] VARCHAR(2), --Week Number of the Quarter
 		[WeekOfYear] VARCHAR(2),--Week Number of the Year
@@ -62,6 +63,7 @@ BEGIN
 		CONVERT (char(8),@CurrentDate,112) as DateKey,
 		@CurrentDate AS Date,
 		CONVERT (char(10),@CurrentDate,103) as FullDateUK,
+		DATEPART(DD, @CurrentDate) AS DayOfMonth,
 		
 		DATEPART(WW, @CurrentDate) + 1 - DATEPART(WW, CONVERT(VARCHAR, DATEPART(MM, @CurrentDate)) + '/1/' + CONVERT(VARCHAR, DATEPART(YY, @CurrentDate))) AS WeekOfMonth,
 		(DATEDIFF(DD, DATEADD(QQ, DATEDIFF(QQ, 0, @CurrentDate), 0), @CurrentDate) / 7) + 1 AS WeekOfQuarter,
@@ -90,7 +92,7 @@ BEGIN
 		CONVERT(DATETIME, '01/01/' + CONVERT(VARCHAR, DATEPART(YY, @CurrentDate))) AS FirstDayOfYear,
 		CONVERT(DATETIME, '12/31/' + CONVERT(VARCHAR, DATEPART(YY, @CurrentDate))) AS LastDayOfYear
 
-	SET @CurrentDate = DATEADD(WW, 1, @CurrentDate)
+	SET @CurrentDate = DATEADD(DD, 1, @CurrentDate)
 END
 
 SELECT 
