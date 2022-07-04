@@ -9,6 +9,14 @@ DECLARE @lastFileID int = (SELECT File_ID FROM Files WHERE Insert_Date = @lastDa
 /****** Need to change so that it gets the IDs of the latest file for each week ******/
 TRUNCATE TABLE FACTS
 
+-- Load diseases not yet in dimDisease
+INSERT INTO [dbo].[dimDisease]
+		(Disease_Name) 
+SELECT DISTINCT(ft.Disease_Name) FROM File_Types ft
+LEFT JOIN dimDisease dd
+ON ft.Disease_Name = dd.Disease_Name
+WHERE dd.Disease_ID IS NULL
+
 --insert from hiv staging table
 	INSERT INTO [dbo].[Facts]
            ([Data_Element]
