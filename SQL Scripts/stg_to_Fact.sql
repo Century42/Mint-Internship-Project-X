@@ -7,14 +7,17 @@ INNER JOIN Files ON stg_HIV.File_ID = Files.File_ID GROUP BY Files.File_ID, Inse
 -- get File_ID of last file added
 DECLARE @lastFileID int = (SELECT File_ID FROM Files WHERE Insert_Date = @lastDate)
 /****** Need to change so that it gets the IDs of the latest file for each week ******/
+TRUNCATE TABLE FACTS
 
 --insert from hiv staging table
 	INSERT INTO [dbo].[Facts]
            ([Data_Element]
            ,[Data_Element_Value],
 		   [DateKey])
-	SELECT hiv.Data_Element, hiv.Data_Element_Value, DateKey, f.Insert_Date
-	FROM stg_HIV hiv
+	
+	SELECT stgTemp.Data_Element, stgTemp.Data_Element_Value, stgTemp.DateKey
+	FROM (SELECT hiv.Data_Element, hiv.Data_Element_Value, DateKey, f.Insert_Date
+		FROM stg_HIV hiv 
 		INNER JOIN Files f 
 			ON hiv.File_ID = f.File_ID 
 		INNER JOIN Weeks w 
@@ -30,7 +33,10 @@ DECLARE @lastFileID int = (SELECT File_ID FROM Files WHERE Insert_Date = @lastDa
 					ON hiv.File_ID = f.File_ID
 			GROUP BY Week_ID
 		) maxdatetbl
-		ON f.Insert_Date = maxdatetbl.maxdate
+		ON f.Insert_Date = maxdatetbl.maxdate ) stgTemp
+	LEFT JOIN Facts 
+	ON stgTemp.DateKey = Facts.DateKey 
+	WHERE Facts.DateKey IS NULL
 
 
 	WHERE
