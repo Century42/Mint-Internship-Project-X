@@ -3,20 +3,20 @@
 -- Load diseases not yet in dimDisease
 INSERT INTO [dbo].[dimDisease]
 		(Disease_Name) 
-SELECT DISTINCT(ft.Disease_Name) FROM File_Types ft
-LEFT JOIN dimDisease dd
-ON ft.Disease_Name = dd.Disease_Name
+SELECT DISTINCT ft.Disease_Name 
+FROM File_Types ft
+	LEFT JOIN dimDisease dd
+	ON ft.Disease_Name = dd.Disease_Name
 WHERE dd.Disease_ID IS NULL
 
 -- Load facilities not yet in dimFacility
 INSERT INTO [dbo].[dimFacilities]
 		([Facility_Province])
-SELECT DISTINCT
-	f.Facility_Province
+SELECT DISTINCT f.Facility_Province
 FROM Facilities f
 	LEFT JOIN dimFacilities d
-		ON d.Facility_Province = f.Facility_Province
-	WHERE d.Facility_ID IS NULL
+	ON d.Facility_Province = f.Facility_Province
+WHERE d.Facility_ID IS NULL
 
 /* ETL: Write data from OLTP into OLAP  */
 
@@ -33,7 +33,7 @@ INSERT INTO [dbo].[Facts]
            [Data_Element_Value],
 		   [DateKey], [Disease_ID], [Facility_ID])
 
-	SELECT stgTemp.Data_Element, stgTemp.Data_Element_Value, stgTemp.DateKey, stgTemp.Disease_ID, stgTemp.Facility_ID
+SELECT stgTemp.Data_Element, stgTemp.Data_Element_Value, stgTemp.DateKey, stgTemp.Disease_ID, stgTemp.Facility_ID
 	FROM 
 	-- Subquery to generate necessary columns
 	(SELECT t.Data_Element, t.Data_Element_Value, dd.DateKey, ds.Disease_ID, df.Facility_ID, Insert_Date
@@ -54,7 +54,7 @@ INSERT INTO [dbo].[Facts]
 			ON f.Facility_ID = fa.Facility_ID
 		INNER JOIN dimFacilities df
 			ON fa.Facility_Province = df.Facility_Province
-			-- Get latest file of week for every type and facility
+			-- Subquery to get latest file of week for every type and facility
 		INNER JOIN (
 			SELECT Week_ID, MAX(f.Insert_Date) maxdate, Type_ID, Facility_ID
 			FROM #temp t
@@ -64,14 +64,15 @@ INSERT INTO [dbo].[Facts]
 		) md
 		ON md.maxdate = f.Insert_Date
 		AND md.Facility_ID = f.Facility_ID
-		AND md.Type_ID = f.Type_ID) stgTemp
-		-- Join only files for week, type and facility not yet included
+		AND md.Type_ID = f.Type_ID
+	) stgTemp
+	-- Join only files for week, type and facility not yet included
 	LEFT JOIN Facts 
-	ON stgTemp.DateKey = Facts.DateKey 
+	ON (stgTemp.DateKey = Facts.DateKey 
 	AND stgTemp.Facility_ID = Facts.Facility_ID
-	AND stgTemp.Disease_ID = Facts.Disease_ID
-	WHERE Facts.DateKey IS NULL
-	AND Facts.Facility_ID IS NULL
-	AND Facts.Disease_ID IS NULL
+	AND stgTemp.Disease_ID = Facts.Disease_ID )
+WHERE (Facts.DateKey IS NULL
+AND Facts.Facility_ID IS NULL
+AND Facts.Disease_ID IS NULL )
 
-	DROP TABLE #temp
+DROP TABLE #temp
