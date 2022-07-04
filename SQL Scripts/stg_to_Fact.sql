@@ -19,11 +19,11 @@ WHERE dd.Disease_ID IS NULL
 
 --insert from hiv staging table
 	INSERT INTO [dbo].[Facts]
-           ([Data_Element]
-           ,[Data_Element_Value],
-		   [DateKey], [Disease_ID])
-	SELECT stgTemp.Data_Element, stgTemp.Data_Element_Value, stgTemp.DateKey, stgTemp.Disease_ID
-	FROM (SELECT hiv.Data_Element, hiv.Data_Element_Value, dd.DateKey, ds.Disease_ID, Insert_Date
+           ([Data_Element],
+           [Data_Element_Value],
+		   [DateKey], [Disease_ID], [Facility_ID])
+	SELECT stgTemp.Data_Element, stgTemp.Data_Element_Value, stgTemp.DateKey, stgTemp.Disease_ID, stgTemp.Facility_ID
+	FROM (SELECT hiv.Data_Element, hiv.Data_Element_Value, dd.DateKey, ds.Disease_ID, df.Facility_ID, Insert_Date
 		FROM stg_HIV hiv 
 		INNER JOIN Files f 
 			ON hiv.File_ID = f.File_ID 
@@ -45,6 +45,10 @@ WHERE dd.Disease_ID IS NULL
 			ON ft.Type_ID = f.Type_ID
 		INNER JOIN dimDisease ds
 			ON ds.Disease_Name = ft.Disease_Name
+		INNER JOIN Facilities fa
+			ON f.Facility_ID = fa.Facility_ID
+		INNER JOIN dimFacilities df
+			ON fa.Facility_Province = df.Facility_Province
 		) stgTemp
 	LEFT JOIN Facts 
 	ON stgTemp.DateKey = Facts.DateKey 
