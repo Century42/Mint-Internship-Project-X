@@ -12,14 +12,14 @@ WHERE ft.Type_ID IS NULL AND dd.Active = 1
 UPDATE dimDisease
 SET dimDisease.Active = 1
 FROM File_Types ft
-	LEFT JOIN dimDisease dd
+	INNER JOIN dimDisease dd
 		ON ft.Disease_Name = dd.Disease_Name
 WHERE dd.Active = 0
 
 -- Insert unseen diseases
 INSERT INTO [dbo].[dimDisease]
-		(Disease_Name) 
-SELECT DISTINCT ft.Disease_Name 
+		(Disease_Name, Active) 
+SELECT DISTINCT ft.Disease_Name, 1
 FROM File_Types ft
 	LEFT JOIN dimDisease dd
 		ON ft.Disease_Name = dd.Disease_Name
@@ -38,19 +38,31 @@ UPDATE dimFacilities
 SET Active = 1
 FROM Facilities f
 	INNER JOIN dimFacilities d
-	ON d.Facility_Name = f.Facility_Name
+		ON d.Facility_Name = f.Facility_Name
 WHERE Active = 0
 
 -- Load facilities not yet in dimFacility
 INSERT INTO [dbo].[dimFacilities]
-		([Facility_Province])
-SELECT DISTINCT f.Facility_Province
+		([Facility_Province], [Facility_Name], [Active])
+SELECT DISTINCT f.Facility_Province, f.Facility_Name, 1
 FROM Facilities f
 	LEFT JOIN dimFacilities d
-		ON d.Facility_Province = f.Facility_Province
+		ON d.Facility_Name = f.Facility_Name
 WHERE d.Facility_ID IS NULL
 
 /* ETL: Write data from OLTP into OLAP  */
+
+-- Set records associated to inactive dimensions inactive as well
+UPDATE Facts
+SET Active = 0
+FROM Facts f
+INNER JOIN dimDisease dd
+	ON f.Disease_ID = dd.Disease_ID
+INNER JOIN dimFacilities df
+	ON f.Facility_ID = df.Facility_ID
+WHERE (dd.Active = 0 OR df.Active = 0) AND f.Active = 1
+
+-- Update previous inactive records to active
 
 -- Create temp table to store info from all staging tables
 SELECT * 
@@ -89,14 +101,31 @@ FROM #temp t
 		ON md.maxdate = f.Insert_Date
 		AND md.Facility_ID = f.Facility_ID
 		AND md.Type_ID = f.Type_ID
+WHERE ds.Active = 1 AND df.Active = 1
+
+SELECT * FROM #query
+
+UPDATE Facts
+SET Active = 1
+FROM (
+SELECT Data_Element, Data_Element_Value, DateKey, Disease_ID, Facility_ID
+FROM Facts f
+WHERE f.Active = 0
+INTERSECT
+SELECT Data_Element, Data_Element_Value, DateKey, Disease_ID, Facility_ID
+FROM #query q ) s
+
+INNER JOIN #query qu
+	ON  (qu.Facility_ID = f.Facility_ID)
+WHERE Active = 0
 
 -- Write to Facts
 INSERT INTO [dbo].[Facts]
            ([Data_Element],
            [Data_Element_Value],
-		   [DateKey], [Disease_ID], [Facility_ID])
+		   [DateKey], [Disease_ID], [Facility_ID], [Active])
 
-SELECT q.Data_Element, q.Data_Element_Value, q.DateKey, q.Disease_ID, q.Facility_ID
+SELECT q.Data_Element, q.Data_Element_Value, q.DateKey, q.Disease_ID, q.Facility_ID, 1
 FROM #query q
 -- Join only files for week, type and facility not yet included
 	LEFT JOIN Facts 
