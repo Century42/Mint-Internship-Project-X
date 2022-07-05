@@ -12,7 +12,7 @@ WHERE ft.Type_ID IS NULL AND dd.Active = 1
 UPDATE dimDisease
 SET dimDisease.Active = 1
 FROM File_Types ft
-	INNER JOIN dimDisease dd
+	LEFT JOIN dimDisease dd
 		ON ft.Disease_Name = dd.Disease_Name
 WHERE dd.Active = 0
 
@@ -62,8 +62,6 @@ INNER JOIN dimFacilities df
 	ON f.Facility_ID = df.Facility_ID
 WHERE (dd.Active = 0 OR df.Active = 0) AND f.Active = 1
 
--- Update previous inactive records to active
-
 -- Create temp table to store info from all staging tables
 SELECT * 
 INTO #temp 
@@ -72,7 +70,7 @@ UNION
 SELECT * FROM stg_TB
 
 SELECT t.Data_Element, t.Data_Element_Value, dd.DateKey, ds.Disease_ID, df.Facility_ID, Insert_Date
-INTO #query
+INTO #query1
 FROM #temp t 
 	INNER JOIN Files f 
 		ON t.File_ID = f.File_ID 
@@ -103,21 +101,54 @@ FROM #temp t
 		AND md.Type_ID = f.Type_ID
 WHERE ds.Active = 1 AND df.Active = 1
 
-SELECT * FROM #query
+-- Update previous inactive records to active
+-- Find all Facility and Disease combinations that must be reactivated
+SELECT DISTINCT q.Facility_ID, q.Disease_ID
+INTO #renew 
+FROM #query1 q
+LEFT JOIN Facts f
+	ON  (f.Facility_ID = q.Facility_ID AND f.Disease_ID = q.Disease_ID)
+WHERE Active = 0
 
+-- Set records that were previously inactive to active again
 UPDATE Facts
 SET Active = 1
-FROM (
-SELECT Data_Element, Data_Element_Value, DateKey, Disease_ID, Facility_ID
 FROM Facts f
-WHERE f.Active = 0
-INTERSECT
-SELECT Data_Element, Data_Element_Value, DateKey, Disease_ID, Facility_ID
-FROM #query q ) s
+INNER JOIN #renew r
+	ON r.Facility_ID = f.Facility_ID AND r.Disease_ID = f.Disease_ID
 
-INNER JOIN #query qu
-	ON  (qu.Facility_ID = f.Facility_ID)
-WHERE Active = 0
+-- recalculate #query (quick fix for now)
+SELECT t.Data_Element, t.Data_Element_Value, dd.DateKey, ds.Disease_ID, df.Facility_ID, Insert_Date
+INTO #query2
+FROM #temp t 
+	INNER JOIN Files f 
+		ON t.File_ID = f.File_ID 
+	INNER JOIN Weeks w 
+		ON f.Week_ID = w.Week_ID  
+	INNER JOIN DimDate dd
+		ON dd.WeekOfYear = w.Week
+		AND dd.Year = w.Year
+		AND dd.DateKey = (SELECT Max(DateKey) FROM DimDate dSub WHERE dSub.WeekOfYear = w.Week AND dSub.Year = w.Year) -- return max day of week
+	INNER JOIN File_Types ft
+		ON ft.Type_ID = f.Type_ID
+	INNER JOIN dimDisease ds
+		ON ds.Disease_Name = ft.Disease_Name
+	INNER JOIN Facilities fa
+		ON f.Facility_ID = fa.Facility_ID
+	INNER JOIN dimFacilities df
+		ON fa.Facility_Province = df.Facility_Province
+		-- Get latest file of week for every type and facility
+	INNER JOIN (
+		SELECT Week_ID, MAX(f.Insert_Date) maxdate, Type_ID, Facility_ID
+		FROM #temp t
+			INNER JOIN Files f
+				ON t.File_ID = f.File_ID
+		GROUP BY Week_ID, Type_ID, Facility_ID
+		) md
+		ON md.maxdate = f.Insert_Date
+		AND md.Facility_ID = f.Facility_ID
+		AND md.Type_ID = f.Type_ID
+WHERE ds.Active = 1 AND df.Active = 1
 
 -- Write to Facts
 INSERT INTO [dbo].[Facts]
@@ -126,7 +157,7 @@ INSERT INTO [dbo].[Facts]
 		   [DateKey], [Disease_ID], [Facility_ID], [Active])
 
 SELECT q.Data_Element, q.Data_Element_Value, q.DateKey, q.Disease_ID, q.Facility_ID, 1
-FROM #query q
+FROM #query2 q
 -- Join only files for week, type and facility not yet included
 	LEFT JOIN Facts 
 		ON q.DateKey = Facts.DateKey 
@@ -137,4 +168,6 @@ AND Facts.Facility_ID IS NULL
 AND Facts.Disease_ID IS NULL
 
 DROP TABLE #temp
-DROP TABLE #query
+DROP TABLE #query1
+DROP TABLE #query2
+DROP TABLE #renew
