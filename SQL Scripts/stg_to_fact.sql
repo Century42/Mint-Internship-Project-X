@@ -1,12 +1,28 @@
 /* Loading dimension tables   */
 
--- Load diseases not yet in dimDisease
+-- Set any deleted diseases to inactive
+UPDATE dimDisease
+SET dimDisease.Active = 0
+FROM File_Types ft
+	RIGHT JOIN dimDisease dd
+		ON dd.Disease_Name = ft.Disease_Name
+WHERE ft.Type_ID IS NULL AND dd.Active = 1
+
+-- Reactivate deleted diseases
+UPDATE dimDisease
+SET dimDisease.Active = 1
+FROM File_Types ft
+	LEFT JOIN dimDisease dd
+		ON ft.Disease_Name = dd.Disease_Name
+WHERE dd.Active = 0
+
+-- Insert unseen diseases
 INSERT INTO [dbo].[dimDisease]
 		(Disease_Name) 
 SELECT DISTINCT ft.Disease_Name 
 FROM File_Types ft
 	LEFT JOIN dimDisease dd
-	ON ft.Disease_Name = dd.Disease_Name
+		ON ft.Disease_Name = dd.Disease_Name
 WHERE dd.Disease_ID IS NULL
 
 -- Load facilities not yet in dimFacility
@@ -15,7 +31,7 @@ INSERT INTO [dbo].[dimFacilities]
 SELECT DISTINCT f.Facility_Province
 FROM Facilities f
 	LEFT JOIN dimFacilities d
-	ON d.Facility_Province = f.Facility_Province
+		ON d.Facility_Province = f.Facility_Province
 WHERE d.Facility_ID IS NULL
 
 /* ETL: Write data from OLTP into OLAP  */
@@ -75,5 +91,5 @@ WHERE Facts.DateKey IS NULL
 AND Facts.Facility_ID IS NULL
 AND Facts.Disease_ID IS NULL
 
-	DROP TABLE #temp
-	DROP TABLE #query
+DROP TABLE #temp
+DROP TABLE #query
