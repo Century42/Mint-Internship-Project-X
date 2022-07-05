@@ -25,6 +25,22 @@ FROM File_Types ft
 		ON ft.Disease_Name = dd.Disease_Name
 WHERE dd.Disease_ID IS NULL
 
+--Toggle off deleted facilities
+UPDATE dimFacilities
+SET Active = 0
+FROM Facilities f
+	RIGHT JOIN dimFacilities d
+		ON d.Facility_Name = f.Facility_Name
+WHERE d.Active = 1 AND f.Facility_ID IS NULL
+
+--Toggle on returning facilities
+UPDATE dimFacilities
+SET Active = 1
+FROM Facilities f
+	INNER JOIN dimFacilities d
+	ON d.Facility_Name = f.Facility_Name
+WHERE Active = 0
+
 -- Load facilities not yet in dimFacility
 INSERT INTO [dbo].[dimFacilities]
 		([Facility_Province])
