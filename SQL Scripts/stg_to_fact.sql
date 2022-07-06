@@ -109,7 +109,6 @@ FROM #query q
 LEFT JOIN Facts f
 	ON  (f.Facility_ID = q.Facility_ID AND f.Disease_ID = q.Disease_ID)
 WHERE Active = 0
-SELECT * FROM #renew
 
 -- Set records that were previously inactive to active again
 UPDATE Facts
@@ -118,11 +117,21 @@ FROM Facts f
 INNER JOIN #renew r
 	ON r.Facility_ID = f.Facility_ID AND r.Disease_ID = f.Disease_ID
 
+--Set current active older records to inactive
+UPDATE Facts 
+SET Active = 0
+FROM Facts f
+	LEFT JOIN #query q
+	ON f.Facility_ID = q.Facility_ID AND f.Disease_ID = q.Disease_ID
+WHERE q.DateKey IS NULL 
+	AND Active = 1
+
 -- Remove reactivated records
 DELETE #query
 FROM #query q
 RIGHT JOIN #renew r
 	ON (q.Facility_ID = r.Facility_ID) AND (q.Disease_ID = r.Disease_ID)
+
 
 -- Write to Facts
 INSERT INTO [dbo].[Facts]
@@ -131,7 +140,7 @@ INSERT INTO [dbo].[Facts]
 		   [DateKey], [Disease_ID], [Facility_ID], [Active])
 
 SELECT q.Data_Element, q.Data_Element_Value, q.DateKey, q.Disease_ID, q.Facility_ID, 1
-FROM #query1 q
+FROM #query q
 -- Join only files for week, type and facility not yet included
 	LEFT JOIN Facts 
 		ON q.DateKey = Facts.DateKey 
@@ -144,3 +153,16 @@ AND Facts.Disease_ID IS NULL)
 DROP TABLE #temp
 DROP TABLE #query
 DROP TABLE #renew
+
+/*TRUNCATE TABLE Facts
+TRUNCATE TABLE dimFacilities
+DELETE FROM dimDisease
+DBCC CHECKIDENT('[dbo].[dimDisease]', RESEED, 0)
+
+TRUNCATE TABLE stg_HIV
+TRUNCATE TABLE stg_TB
+
+TRUNCATE TABLE File_Logs
+DELETE FROM Files
+DBCC CHECKIDENT('[dbo].[Files]', RESEED, 0)
+TRUNCATE TABLE Temp*/
