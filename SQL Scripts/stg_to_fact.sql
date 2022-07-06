@@ -1,6 +1,7 @@
 /* Loading dimension tables   */
 
 -- Set any non-existing entity to inactive (name changed).
+/* Name changes will be infrequent, therefore duplication of results is justifiable */
 UPDATE dimDisease
 SET dimDisease.Active = 0
 FROM File_Types ft
@@ -16,6 +17,8 @@ FROM Facilities f
 WHERE f.Facility_ID IS NULL AND d.Active = 1 
 
 -- Reactivate pre-existing entity (name changed back).
+/* If names ever get reverted back to old (inactive) identities, in order to prevent
+	further duplication of existing records we must reactivate the old ones */
 UPDATE dimDisease
 SET dimDisease.Active = 1
 FROM File_Types ft
