@@ -1,6 +1,6 @@
 /* Loading dimension tables   */
 
--- Set any deleted diseases to inactive
+-- Set any non-existing disease to inactive (name changed)
 UPDATE dimDisease
 SET dimDisease.Active = 0
 FROM File_Types ft
@@ -8,7 +8,7 @@ FROM File_Types ft
 		ON dd.Disease_Name = ft.Disease_Name
 WHERE ft.Type_ID IS NULL AND dd.Active = 1
 
--- Reactivate deleted diseases
+-- Reactivate pre-existing diseases (name changed back)
 UPDATE dimDisease
 SET dimDisease.Active = 1
 FROM File_Types ft
@@ -16,7 +16,7 @@ FROM File_Types ft
 		ON ft.Disease_Name = dd.Disease_Name
 WHERE dd.Active = 0
 
--- Insert unseen diseases
+-- Insert unseen diseases (brand new disease)
 INSERT INTO [dbo].[dimDisease]
 		(Disease_Name, Active) 
 SELECT DISTINCT ft.Disease_Name, 1
@@ -24,6 +24,14 @@ FROM File_Types ft
 	LEFT JOIN dimDisease dd
 		ON ft.Disease_Name = dd.Disease_Name
 WHERE dd.Disease_ID IS NULL
+
+-- Deactivate deleted diseases (Active type set to inactive)
+UPDATE dimDisease
+SET dimDisease.Active = 0
+FROM File_Types ft
+	RIGHT JOIN dimDisease dd
+		ON dd.Disease_Name = ft.Disease_Name
+WHERE ft.Active = 0 AND dd.Active = 1
 
 --Toggle off deleted facilities
 UPDATE dimFacilities
@@ -98,7 +106,7 @@ FROM #temp t
 		) md
 		ON md.maxdate = f.Insert_Date
 		AND md.Facility_ID = f.Facility_ID
-		AND md.Type_ID = f.Type_ID
+		AND md.Type_ID = f.Type_ID AND ft.Active = 1
 WHERE ds.Active = 1 AND df.Active = 1
 
 -- Update previous inactive records to active
