@@ -70,7 +70,7 @@ UNION
 SELECT * FROM stg_TB
 
 SELECT t.Data_Element, t.Data_Element_Value, dd.DateKey, ds.Disease_ID, df.Facility_ID, Insert_Date
-INTO #query1
+INTO #query
 FROM #temp t 
 	INNER JOIN Files f 
 		ON t.File_ID = f.File_ID 
@@ -105,10 +105,11 @@ WHERE ds.Active = 1 AND df.Active = 1
 -- Find all Facility and Disease combinations that must be reactivated
 SELECT DISTINCT q.Facility_ID, q.Disease_ID
 INTO #renew 
-FROM #query1 q
+FROM #query q
 LEFT JOIN Facts f
 	ON  (f.Facility_ID = q.Facility_ID AND f.Disease_ID = q.Disease_ID)
 WHERE Active = 0
+SELECT * FROM #renew
 
 -- Set records that were previously inactive to active again
 UPDATE Facts
@@ -117,38 +118,11 @@ FROM Facts f
 INNER JOIN #renew r
 	ON r.Facility_ID = f.Facility_ID AND r.Disease_ID = f.Disease_ID
 
--- recalculate #query (quick fix for now)
-SELECT t.Data_Element, t.Data_Element_Value, dd.DateKey, ds.Disease_ID, df.Facility_ID, Insert_Date
-INTO #query2
-FROM #temp t 
-	INNER JOIN Files f 
-		ON t.File_ID = f.File_ID 
-	INNER JOIN Weeks w 
-		ON f.Week_ID = w.Week_ID  
-	INNER JOIN DimDate dd
-		ON dd.WeekOfYear = w.Week
-		AND dd.Year = w.Year
-		AND dd.DateKey = (SELECT Max(DateKey) FROM DimDate dSub WHERE dSub.WeekOfYear = w.Week AND dSub.Year = w.Year) -- return max day of week
-	INNER JOIN File_Types ft
-		ON ft.Type_ID = f.Type_ID
-	INNER JOIN dimDisease ds
-		ON ds.Disease_Name = ft.Disease_Name
-	INNER JOIN Facilities fa
-		ON f.Facility_ID = fa.Facility_ID
-	INNER JOIN dimFacilities df
-		ON fa.Facility_Province = df.Facility_Province
-		-- Get latest file of week for every type and facility
-	INNER JOIN (
-		SELECT Week_ID, MAX(f.Insert_Date) maxdate, Type_ID, Facility_ID
-		FROM #temp t
-			INNER JOIN Files f
-				ON t.File_ID = f.File_ID
-		GROUP BY Week_ID, Type_ID, Facility_ID
-		) md
-		ON md.maxdate = f.Insert_Date
-		AND md.Facility_ID = f.Facility_ID
-		AND md.Type_ID = f.Type_ID
-WHERE ds.Active = 1 AND df.Active = 1
+-- Remove reactivated records
+DELETE #query
+FROM #query q
+RIGHT JOIN #renew r
+	ON (q.Facility_ID = r.Facility_ID) AND (q.Disease_ID = r.Disease_ID)
 
 -- Write to Facts
 INSERT INTO [dbo].[Facts]
@@ -157,17 +131,16 @@ INSERT INTO [dbo].[Facts]
 		   [DateKey], [Disease_ID], [Facility_ID], [Active])
 
 SELECT q.Data_Element, q.Data_Element_Value, q.DateKey, q.Disease_ID, q.Facility_ID, 1
-FROM #query2 q
+FROM #query1 q
 -- Join only files for week, type and facility not yet included
 	LEFT JOIN Facts 
 		ON q.DateKey = Facts.DateKey 
 		AND q.Facility_ID = Facts.Facility_ID
 		AND q.Disease_ID = Facts.Disease_ID
-WHERE Facts.DateKey IS NULL
+WHERE (Facts.DateKey IS NULL
 AND Facts.Facility_ID IS NULL
-AND Facts.Disease_ID IS NULL
+AND Facts.Disease_ID IS NULL)
 
 DROP TABLE #temp
-DROP TABLE #query1
-DROP TABLE #query2
+DROP TABLE #query
 DROP TABLE #renew
