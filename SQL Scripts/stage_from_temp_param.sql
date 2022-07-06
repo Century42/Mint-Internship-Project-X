@@ -1,4 +1,4 @@
 EXEC dbo.StageFromTemp
-	@Facility = 'Gauteng',
-	@File_Type = 'tb_csv',
-	@User_Name = 'hivuser'
+	@Facility_Name = 'WC Nursery',
+	@File_Type = 'cov_csv',
+	@User_Name = 'matthewkeys'
