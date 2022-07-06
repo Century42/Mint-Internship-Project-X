@@ -1,8 +1,6 @@
 /* Loading dimension tables   */
 
-/* DISEASES */
-
--- Set any non-existing entity to inactive (name changed)
+-- Set any non-existing entity to inactive (name changed).
 UPDATE dimDisease
 SET dimDisease.Active = 0
 FROM File_Types ft
@@ -17,7 +15,7 @@ FROM Facilities f
 		ON d.Facility_Name = f.Facility_Name
 WHERE f.Facility_ID IS NULL AND d.Active = 1 
 
--- Reactivate pre-existing entity (name changed back)
+-- Reactivate pre-existing entity (name changed back).
 UPDATE dimDisease
 SET dimDisease.Active = 1
 FROM File_Types ft
@@ -32,7 +30,7 @@ FROM Facilities f
 		ON df.Facility_Name = f.Facility_Name
 WHERE df.Active = 0
 
--- Insert unseen entity (brand new disease/facility)
+-- Insert unseen entity (brand new disease/facility).
 INSERT INTO [dbo].[dimDisease]
 		(Disease_Name, Active) 
 SELECT DISTINCT ft.Disease_Name, 1
@@ -49,7 +47,7 @@ FROM Facilities f
 		ON d.Facility_Name = f.Facility_Name
 WHERE d.Facility_ID IS NULL
 
--- Deactivate deleted entity (Active type set to inactive)
+-- Deactivate deleted entity (Active type set to inactive).
 UPDATE dimDisease
 SET dimDisease.Active = 0
 FROM File_Types ft
@@ -66,7 +64,7 @@ WHERE f.Active = 0 AND df.Active = 1
 
 /* ETL: Write data from OLTP into OLAP  */
 
--- Set records associated to inactive dimensional identities to inactive
+-- Set records associated to inactive dimensional identities to inactive.
 UPDATE Facts
 SET Active = 0
 FROM Facts f
@@ -76,13 +74,14 @@ INNER JOIN dimFacilities df
 	ON f.Facility_ID = df.Facility_ID
 WHERE (dd.Active = 0 OR df.Active = 0) AND f.Active = 1
 
--- Create temp table to store info from all staging tables
+-- Create temp table to store info from all staging tables.
 SELECT * 
 INTO #temp 
 FROM stg_HIV
 UNION
 SELECT * FROM stg_TB
 
+-- Generate temporary query table that stores all information needed for insert into Facts table.
 SELECT t.Data_Element, t.Data_Element_Value, dd.DateKey, ds.Disease_ID, df.Facility_ID, Insert_Date
 INTO #query
 FROM #temp t 
@@ -115,44 +114,34 @@ FROM #temp t
 		AND (md.Type_ID = f.Type_ID AND ft.Active = 1)
 WHERE ds.Active = 1 AND df.Active = 1
 
-/* Update previous inactive records to active */
--- Find all Facility and Disease combinations that must be reactivated
+/* Update previously inactive records to active */
+-- Find all Facility and Disease combinations that must be reactivated.
 SELECT DISTINCT q.Facility_ID, q.Disease_ID
 INTO #renew 
 FROM #query q
 LEFT JOIN Facts f
 	ON  (f.Facility_ID = q.Facility_ID AND f.Disease_ID = q.Disease_ID)
 WHERE f.Active = 0
--- Set records that were previously inactive to active again
+-- Set records that were previously inactive to active again.
 UPDATE Facts
 SET Active = 1
 FROM Facts f
 INNER JOIN #renew r
 	ON r.Facility_ID = f.Facility_ID AND r.Disease_ID = f.Disease_ID
-
---Set current active older records to inactive
-UPDATE Facts 
-SET Active = 0
-FROM Facts f
-	LEFT JOIN #query q
-	ON f.Facility_ID = q.Facility_ID AND f.Disease_ID = q.Disease_ID
-WHERE q.DateKey IS NULL 
-	AND Active = 1
-
--- Remove reactivated records
+-- Remove reactivated records.
 DELETE #query
 FROM #query q
 RIGHT JOIN #renew r
 	ON (q.Facility_ID = r.Facility_ID) AND (q.Disease_ID = r.Disease_ID)
 
--- Write to Facts
+/* Write all new data to Facts table */
 INSERT INTO [dbo].[Facts]
            ([Data_Element],
            [Data_Element_Value],
 		   [DateKey], [Disease_ID], [Facility_ID], [Active])
 SELECT q.Data_Element, q.Data_Element_Value, q.DateKey, q.Disease_ID, q.Facility_ID, 1
 FROM #query q
--- Join only files for week, type and facility not yet included
+-- Join only files for week, type and facility not yet included.
 	LEFT JOIN Facts 
 		ON q.DateKey = Facts.DateKey 
 		AND q.Facility_ID = Facts.Facility_ID
@@ -165,6 +154,7 @@ DROP TABLE #temp
 DROP TABLE #query
 DROP TABLE #renew
 
+-- RESET TABLES
 /*TRUNCATE TABLE Facts
 TRUNCATE TABLE dimFacilities
 DELETE FROM dimDisease
