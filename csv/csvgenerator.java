@@ -7,14 +7,14 @@ import java.io.IOException;
 public class csvgenerator {
 
     private static final String[] strings = { "Cases", "Treated", "Deaths" };
-    private static final int NUMFILES = 3;
-    private static final int NUMENTRIES = 20;
+    private static final int NUMFILES = 1;
+    private static final int NUMENTRIES = 100;
     private static String type;
     private static int totalCases;
 
     public static void main(String args[]) {
 
-        type = "tb";
+        type = "hiv";
 
         for (int i = 0; i < NUMFILES; i++) {
             FileWriter file = makeFile(i + 1);
@@ -60,7 +60,8 @@ public class csvgenerator {
 
     private static FileWriter makeFile(int index) {
 
-        String fileName = type + "_" + index + ".csv";
+        //String fileName = type + "_" + index + ".csv";
+        String fileName = type + "_" + 4 + ".csv";
 
         try {
             File file = new File(fileName);
