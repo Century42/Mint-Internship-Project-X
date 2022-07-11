@@ -24,7 +24,7 @@ public class csvgenerator {
                 int elementValue;
 
                 if (!(totalCases > 0)) {
-                    elementValue = (int) (Math.random() * 15) + 1;
+                    elementValue = (int) (Math.random() * 10) + 1;
                     totalCases += elementValue;
                     index = 0;
                 } else {
@@ -61,7 +61,7 @@ public class csvgenerator {
     private static FileWriter makeFile(int index) {
 
         //String fileName = type + "_" + index + ".csv";
-        String fileName = type + "_" + 4 + ".csv";
+        String fileName = type + "_" + 5 + ".csv";
 
         try {
             File file = new File(fileName);
